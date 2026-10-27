@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VM Cebraspe 30H — Edição com Backup & Drive</title>
+<style>
+  :root{
+    --azul:#0b3d6b; --azul2:#145a9e; --cinza:#f4f6f9; --borda:#d9e1ea;
+    --verde:#1e7a46; --vermelho:#b3261e; --amarelo:#8a6d00; --texto:#1c2530;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+       background:var(--cinza); color:var(--texto); line-height:1.55; font-size:15px;}
+  header{background:var(--azul); color:#fff; padding:14px 18px; position:sticky; top:0; z-index:50;
+         display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;}
+  header h1{font-size:17px; font-weight:700;}
+  header .sub{font-size:12px; opacity:.85;}
+  .progresso-topo{display:flex; gap:14px; font-size:12px; align-items:center;}
+  .barra{background:rgba(255,255,255,.25); height:8px; width:120px; border-radius:4px; overflow:hidden;}
+  .barra > i{display:block; height:100%; background:#7fd1a0; width:0%; transition:width .3s;}
+  nav{display:flex; flex-wrap:wrap; gap:6px; padding:10px 18px; background:#fff; border-bottom:1px solid var(--borda);
+      position:sticky; top:62px; z-index:40;}
+  nav button{border:1px solid var(--borda); background:#fff; padding:7px 12px; border-radius:8px; cursor:pointer;
+             font-size:13px; color:var(--azul); font-weight:600;}
+  nav button.ativo{background:var(--azul); color:#fff; border-color:var(--azul);}
+  main{max-width:980px; margin:0 auto; padding:18px;}
+  section{display:none;}
+  section.ativo{display:block;}
+  .card{background:#fff; border:1px solid var(--borda); border-radius:12px; padding:16px 18px; margin-bottom:14px;
+        box-shadow:0 1px 3px rgba(11,61,107,.06);}
+  .card h2{font-size:16px; color:var(--azul); margin-bottom:8px;}
+  .card h3{font-size:14px; color:var(--azul2); margin:12px 0 6px;}
+  .metafora{background:#fff8e1; border-left:4px solid #e0a800; padding:10px 12px; border-radius:6px; margin:10px 0; font-size:14px;}
+  .alerta{background:#fdecea; border-left:4px solid var(--vermelho); padding:10px 12px; border-radius:6px; margin:10px 0; font-size:14px;}
+  .ok{background:#e8f5ee; border-left:4px solid var(--verde); padding:10px 12px; border-radius:6px; margin:10px 0; font-size:14px;}
+  .aviso-drive{background:#eef6ff; border-left:4px solid var(--azul2); padding:12px 14px; border-radius:6px; margin:10px 0; font-size:13.5px;}
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:13.5px;}
+  th,td{border:1px solid var(--borda); padding:7px 9px; text-align:left; vertical-align:top;}
+  th{background:#eef3f9; color:var(--azul);}
+  .diagrama{background:#f8fafc; border:1px dashed var(--borda); border-radius:10px; padding:12px; margin:10px 0;
+            font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; white-space:pre-wrap; overflow-x:auto;}
+  .item{border:1px solid var(--borda); border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#fff;}
+  .item .enunciado{font-size:14.5px; margin-bottom:10px;}
+  .item .tag{display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px;
+             background:#eef3f9; color:var(--azul); margin-bottom:6px;}
+  .botoes{display:flex; gap:8px; flex-wrap:wrap;}
+  .botoes button{border:1px solid var(--borda); background:#fff; padding:7px 14px; border-radius:8px; cursor:pointer;
+                 font-weight:700; font-size:13px;}
+  .botoes button.certo{border-color:var(--verde); color:var(--verde);}
+  .botoes button.errado{border-color:var(--vermelho); color:var(--vermelho);}
+  .botoes button:disabled{opacity:.5; cursor:default;}
+  .feedback{margin-top:10px; font-size:13.5px; padding:10px 12px; border-radius:8px; display:none;}
+  .feedback.show{display:block;}
+  .feedback.acerto{background:#e8f5ee; border-left:4px solid var(--verde);}
+  .feedback.erro{background:#fdecea; border-left:4px solid var(--vermelho);}
+  .feedback .espelho{margin-top:8px; padding-top:8px; border-top:1px dashed var(--borda); font-size:13px;}
+  textarea{width:100%; min-height:180px; padding:12px; border:1px solid var(--borda); border-radius:10px;
+           font-family:inherit; font-size:14px; resize:vertical;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0;}
+  .chip{font-size:12px; padding:3px 10px; border-radius:20px; background:#eef3f9; color:var(--azul); border:1px solid var(--borda);}
+  .chip.falta{background:#fdecea; color:var(--vermelho); border-color:#f3c2be;}
+  .chip.tem{background:#e8f5ee; color:var(--verde); border-color:#bfe3cd;}
+  .cronograma td:first-child{font-weight:700; color:var(--azul); white-space:nowrap;}
+  .painel-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
+  .painel-grid .num{font-size:22px; font-weight:800; color:var(--azul);}
+  .painel-grid .lbl{font-size:12px; color:#5a6a7a;}
+  .acoes{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .acoes button{background:var(--azul); color:#fff; border:none; padding:9px 16px; border-radius:8px; cursor:pointer;
+                font-weight:700; font-size:13px;}
+  .acoes button.sec{background:#fff; color:var(--azul); border:1px solid var(--azul);}
+  .timer{font-size:28px; font-weight:800; color:var(--azul); font-variant-numeric:tabular-nums;}
+  .sim-nav{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .sim-progresso{font-size:13px; color:#5a6a7a;}
+  .resultado-final{font-size:15px; padding:14px; border-radius:10px; background:#eef3f9; margin-top:12px;}
+  @media print{
+    header,nav,.acoes,.botoes,.timer-box,.sim-nav{display:none !important;}
+    body{background:#fff; font-size:11.5pt;}
+    main{max-width:100%; padding:0;}
+    section{display:block !important; page-break-after:always;}
+    .card{box-shadow:none; border:1px solid #999; page-break-inside:avoid;}
+    .feedback{display:block !important; background:#fff !important; border:1px solid #999 !important;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>VM Cebraspe 30H</h1>
+    <div class="sub">Ventilação Mecânica · Fisioterapia SES-DF · 100 itens C/E + 3 discursivas + Drive Safe</div>
+  </div>
+  <div class="progresso-topo">
+    <div>
+      <div style="font-size:11px;opacity:.85">Progresso do banco</div>
+      <div class="barra"><i id="barraProgresso"></i></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:11px;opacity:.85">Acertos em itens</div>
+      <div style="font-size:16px;font-weight:800" id="placarTopo">0/0</div>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <button data-sec="painel" class="ativo">Painel</button>
+  <button data-sec="cronograma">Cronograma 30h</button>
+  <button data-sec="teoria">Teoria</button>
+  <button data-sec="itens">Itens C/E (100)</button>
+  <button data-sec="discursiva">Discursivas (3)</button>
+  <button data-sec="simulado">Simulado (50)</button>
+  <button data-sec="erros">Caderno de Erros</button>
+  <button data-sec="drive">Drive & Backup</button>
+  <button data-sec="imprimir">Imprimir</button>
+</nav>
+
+<main>
+
+<!-- ================= PAINEL ================= -->
+<section id="sec-painel" class="ativo">
+  <div class="card">
+    <h2>Painel de Controle</h2>
+    <div class="painel-grid">
+      <div><div class="num" id="pItens">0</div><div class="lbl">Itens respondidos</div></div>
+      <div><div class="num" id="pAcertos">0%</div><div class="lbl">Taxa de acerto</div></div>
+      <div><div class="num" id="pErros">0</div><div class="lbl">Itens no caderno de erros</div></div>
+      <div><div class="num" id="pDisc">0/3</div><div class="lbl">Discursivas avaliadas</div></div>
+      <div><div class="num" id="pSim">—</div><div class="lbl">Último simulado (Líquido)</div></div>
+    </div>
+    <div class="acoes">
+      <button onclick="irPara('itens')">Continuar itens</button>
+      <button class="sec" onclick="irPara('simulado')">Iniciar simulado</button>
+      <button class="sec" onclick="irPara('discursiva')">Ir para discursiva</button>
+      <button class="sec" onclick="irPara('drive')">Backup / Salvar no Drive</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Sessão de hoje (método direto)</h2>
+    <p>Regra de aprovação: <strong>teoria mínima → itens → espelho de erros → discursiva cronometrada</strong>.</p>
+    <div class="ok">Meta diária: 40–50 itens C/E + 1 estudo de caso discursivo por dia de estudo focado.</div>
+  </div>
+
+  <div class="card">
+    <h2>Como o Cebraspe tenta induzir ao erro (5 padrões)</h2>
+    <table>
+      <tr><th>Tipo de erro</th><th>Exemplo</th><th>O que a banca alterou</th></tr>
+      <tr><td>Inversão de conceito</td><td>"Na PCV, o fluxo é o parâmetro controlado"</td><td>Na PCV controla-se <strong>pressão</strong>; o fluxo varia</td></tr>
+      <tr><td>Inversão de valor</td><td>"PEEP externa = 50% da auto-PEEP"</td><td>O padrão seguro é <strong>75–85%</strong> da auto-PEEP estática</td></tr>
+      <tr><td>Confusão de alvo</td><td>"Ppico representa hiperinsuflação alveolar"</td><td>Ppico reflete via aérea + parênquima; <strong>Pplatô</strong> reflete o alvéolo puro</td></tr>
+      <tr><td>Inversão de indicação</td><td>"VNI contraindicada no DPOC acidótico"</td><td>É <strong>fortemente indicada</strong> na exacerbação hipercápnica</td></tr>
+      <tr><td>Condição excessiva</td><td>"SARA grave = PaO₂/FiO₂ 100–200"</td><td>Grave é <strong>≤100</strong>; moderada é 100–200 (com PEEP ≥5)</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================= CRONOGRAMA ================= -->
+<section id="sec-cronograma">
+  <div class="card">
+    <h2>Cronograma Tático de 30 Horas (Terça a Sábado)</h2>
+    <table class="cronograma">
+      <tr><th>Dia</th><th>Carga</th><th>Blocos de Treinamento</th></tr>
+      <tr><td>Terça</td><td>6h</td><td>1,5h Teoria: Equação do Movimento + Modos · 3h Itens C/E (40) · 1h Espelho de erros · 0,5h Revisão</td></tr>
+      <tr><td>Quarta</td><td>7h</td><td>2,5h Teoria: SARA + PEEP/Hemodinâmica · 2,5h Itens (35) · 1h Discursiva 1 · 1h Espelho + SARA</td></tr>
+      <tr><td>Quinta</td><td>7h</td><td>2,5h Teoria: Assincronias + Desmame · 2,5h Itens (35) · 1h Discursiva 2 · 1h Espelho + DPOC</td></tr>
+      <tr><td>Sexta</td><td>5h</td><td>2h Simulado (50 itens cronometrado) · 1,5h Análise cirúrgica de erros · 1,5h Discursiva 3</td></tr>
+      <tr><td>Sábado</td><td>5h</td><td>2h Repetição exclusiva de erros · 1h Revisão teórica · 1h Refazer discursiva 1 · 1h Exportar/Imprimir</td></tr>
+    </table>
+    <div class="alerta">Regra de ouro Cebraspe: o sábado não é para conteúdo novo; é para o cérebro neutralizar as armadilhas já mapeadas.</div>
+  </div>
+</section>
+
+<!-- ================= TEORIA ================= -->
+<section id="sec-teoria">
+  <div class="card">
+    <h2>Tópico 1 — Equação do Movimento e Mecânica Básica</h2>
+    <div class="diagrama">Pva = (Fluxo × Resistência) + (Volume / Complacência) + PEEP
+       ↑ componente resistivo   ↑ componente elástico  ↑ calço elástico
+
+Ppico  → avalia sistema TODO (resistência do tubo + parênquima pulmonar)
+Pplatô → avalia EXCLUSIVAMENTE o parênquima (pausa inspiratória com fluxo zero)
+
+Cest = VT / (Pplatô − PEEP)      Raw = (Ppico − Pplatô) / Fluxo</div>
+    <div class="metafora"><strong>Metáfora clínica:</strong> canudo fino (resistência das vias) vs. bexiga espessa (complacência alveolar). A Ppico afere ambos; o Pplatô mede unicamente a tensão da bexiga.</div>
+    <div class="alerta"><strong>Pegadinha Clássica Cebraspe:</strong> "A Ppico é medida direta de hiperinsuflação e estresse alveolar" → <strong>ERRADO</strong>. Quem reflete a pressão alveolar sob fluxo nulo é o Pplatô.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 2 — Modos Ventilatórios e as 4 Fases do Ciclo</h2>
+    <table>
+      <tr><th>Modo</th><th>Disparo</th><th>Limite</th><th>Ciclagem</th><th>O que varia</th></tr>
+      <tr><td>VCV</td><td>Tempo ou Esforço</td><td>Fluxo</td><td>Volume programado</td><td>Pressão varia conforme resistência e elastância</td></tr>
+      <tr><td>PCV</td><td>Tempo ou Esforço</td><td>Pressão inspiratória</td><td>Tempo programado</td><td>Volume varia conforme complacência e esforço</td></tr>
+      <tr><td>PSV</td><td>Esforço (P ou Fluxo)</td><td>Pressão de suporte</td><td>Queda de fluxo (padrão 25% do pico)</td><td>Paciente controla FR, Ti e Volume</td></tr>
+    </table>
+    <div class="metafora"><strong>Metáfora das 4 fases:</strong> Disparo (quem desperta o ciclo), Limite (o teto da insuflação), Ciclagem (quem abre a válvula de escape) e Fase Expiratória (onde atua a PEEP).</div>
+    <div class="alerta"><strong>Pegadinha:</strong> "Na PCV o fluxo é fixo e controlado" → <strong>ERRADO</strong>. Na PCV a pressão é constante e o fluxo é livremente desacelerado.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 3 — Ventilação Protetora na SARA</h2>
+    <table>
+      <tr><th>Parâmetro</th><th>Alvo Protetor Recomendado</th></tr>
+      <tr><td>Volume Corrente (VT)</td><td>4 a 6 mL/kg de <strong>peso predito</strong> (calculado por sexo e altura, jamais peso real)</td></tr>
+      <tr><td>Pressão de Platô (Pplatô)</td><td>≤ 30 cmH₂O</td></tr>
+      <tr><td>Driving Pressure (ΔP = Pplatô − PEEP)</td><td>≤ 15 cmH₂O</td></tr>
+      <tr><td>pH mínimo (Hipercapnia permissiva)</td><td>≥ 7,20 (exceto TCE com PIC aumentada ou hipertensão pulmonar descompensada)</td></tr>
+      <tr><td>Posição Prona</td><td>PaO₂/FiO₂ &lt; 150 sob PEEP otimizada e FiO₂ ≥ 60%, mantida por ≥ 16 horas consecutivas</td></tr>
+      <tr><td>Critérios de Berlim (PEEP ≥ 5)</td><td>Leve: 200–300 · Moderada: 100–200 · Grave: ≤ 100 mmHg</td></tr>
+    </table>
+    <div class="metafora"><strong>Conceito do Baby Lung:</strong> o parênquima funcionante na SARA tem dimensões de pulmão infantil. Ventilar com volumes adultos normais causa volutrauma e barotrauma imediatos.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 4 — PEEP e Interação Cardiopulmonar</h2>
+    <div class="diagrama">↑ PEEP excessiva → ↑ Pressão intratorácica → ↓ Retorno venoso (pré-carga de VD)
+                 → ↓ Débito cardíaco → Queda da Pressão Arterial Sistêmica
+
+PEEP extrínseca (ajustada no aparelho) ≠ Auto-PEEP (aprisionamento aéreo dinâmico)</div>
+    <div class="alerta"><strong>Pegadinha:</strong> "Para neutralizar auto-PEEP por colapso dinâmico no DPOC, ajusta-se a PEEP em 50%" → <strong>ERRADO</strong>. O ajuste correto é entre <strong>75% e 85%</strong> da auto-PEEP estática medida por pausa expiratória.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 5 — Assincronias e Monitorização Gráfica</h2>
+    <table>
+      <tr><th>Assincronia</th><th>Mecanismo Fisiopatológico</th><th>Padrão Gráfico Característico</th></tr>
+      <tr><td>Disparo Ineficaz</td><td>Esforço muscular não supera auto-PEEP ou fraqueza muscular grave</td><td>Deflexão negativa na pressão sem abertura do ciclo</td></tr>
+      <tr><td>Duplo Disparo</td><td>Tempo inspiratório neural do paciente maior que o Ti do aparelho ou fome de fluxo</td><td>Dois ciclos consecutivos sem fase expiratória completa</td></tr>
+      <tr><td>Fome de Fluxo</td><td>Demanda inspiratória maior que a taxa de fluxo programada no VCV</td><td>Curva de pressão com concavidade anormal (achatamento)</td></tr>
+      <tr><td>Ciclagem Prematura</td><td>Ti do ventilador inferior à necessidade do drive respiratório</td><td>Esforço expiratório ativo cortado antes do tempo</td></tr>
+      <tr><td>Aprisionamento / Obstrução</td><td>Auto-PEEP decorrente de hiperinsuflação dinâmica</td><td>Alça Pressão-Volume com sinal do "bico de pato" (*beaking*)</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 6 — Desmame e Extubação Segura</h2>
+    <table>
+      <tr><th>Etapa</th><th>Critérios Técnicos Obrigatórios</th></tr>
+      <tr><td>Prontidão</td><td>Causa primária resolvida, estabilidade hemodinâmica, P/F &gt; 150–200, PEEP ≤ 8, FiO₂ ≤ 40%, pH &gt; 7,30</td></tr>
+      <tr><td>Índice de Tobin (IRRS)</td><td>FR / VT(L) &lt; 105 ciclos/min/L prediz alta chance de sucesso</td></tr>
+      <tr><td>Teste de Respiração Espontânea (TRE)</td><td>Duração de 30 a 120 minutos em Tubo T ou PSV (5–7 cmH₂O com PEEP ≤ 5)</td></tr>
+      <tr><td>Teste de Fuga do Balonete (*Cuff Leak Test*)</td><td>Avalia permeabilidade laringotraqueal e risco de estridor pós-extubação</td></tr>
+      <tr><td>VNI Profilática Imediata</td><td>Indicada imediatamente pós-extubação em alto risco (DPOC, hipercápnicos, ICC, obesos)</td></tr>
+    </table>
+    <div class="alerta"><strong>Pegadinha Clássica:</strong> A VNI no resgate tardio de extubação já falhada é <strong>contraindicada</strong> (aumenta mortalidade por atraso na reintubação); a profilática é mandatória.</div>
+  </div>
+
+  <div class="card">
+    <h2>Tópico 7 — Esqueleto Padronizado da Discursiva Cebraspe (4 Parágrafos)</h2>
+    <div class="diagrama">§1 Diagnóstico Funcional: Tipo de insuficiência respiratória (I ou II) + mecânica alterada (↓Cest ou ↑Raw).
+§2 Ajuste Inicial: Modo escolhido, Volume Corrente (4–6 mL/kg de peso predito), PEEP, FR e FiO₂ inicial.
+§3 Metas de Proteção Alveolar: Limite de Pplatô (≤30), limite de Driving Pressure (≤15) e pH alvo (≥7,20).
+§4 Condutas Específicas / Adicionais: Prona ≥16h se P/F &lt; 150; bloqueio neuromuscular inicial nas primeiras 48h se assincronia grave; VNI profilática pós-desmame.</div>
+  </div>
+</section>
+
+<!-- ================= ITENS ================= -->
+<section id="sec-itens">
+  <div class="card">
+    <h2>Banco de 100 Itens Certo / Errado — Estilo Cebraspe</h2>
+    <p style="font-size:13.5px;color:#5a6a7a">Marque C ou E. O sistema armazena seu progresso em tempo real e encaminha os erros para o caderno de reteste.</p>
+    <div class="acoes">
+      <button class="sec" onclick="filtrarItens('todos')">Todos</button>
+      <button class="sec" onclick="filtrarItens('mecanica')">Mecânica/Modos</button>
+      <button class="sec" onclick="filtrarItens('sara')">SARA/PEEP</button>
+      <button class="sec" onclick="filtrarItens('assinc')">Assincronias/Desmame</button>
+      <button class="sec" onclick="filtrarItens('obstrutivo')">Obstrutivo/DPOC</button>
+    </div>
+  </div>
+  <div id="listaItens"></div>
+</section>
+
+<!-- ================= DISCURSIVAS ================= -->
+<section id="sec-discursiva">
+  <div class="card">
+    <h2>Discursiva 1 — Manejo Ventilatório na SARA Grave</h2>
+    <p style="font-size:13.5px"><strong>Cenário:</strong> Paciente admitido em choque séptico de foco pulmonar, IOT recente, PaO₂/FiO₂ = 120 sob PEEP 10 e FiO₂ 60%. Descreva: diagnóstico funcional, parametrização inicial, metas protetoras e conduta adjuvante.</p>
+    <div class="timer-box">
+      <div class="timer" id="timerD1">30:00</div>
+      <div class="acoes">
+        <button onclick="iniciarTimer('D1')">Iniciar cronômetro</button>
+        <button class="sec" onclick="pararTimer('D1')">Parar</button>
+      </div>
+    </div>
+    <textarea id="respD1" oninput="salvarTextoDisc('D1')" placeholder="Redija sua resposta em 4 parágrafos estruturados..."></textarea>
+    <div class="acoes">
+      <button onclick="avaliarDisc('D1')">Avaliar palavras-gatilho do espelho</button>
+      <button class="sec" onclick="limparDisc('D1')">Limpar</button>
+    </div>
+    <div id="resultD1" class="chips"></div>
+    <div id="feedbackD1"></div>
+  </div>
+
+  <div class="card">
+    <h2>Discursiva 2 — Falha de Desmame e Assincronia Ventilatória</h2>
+    <p style="font-size:13.5px"><strong>Cenário:</strong> Paciente DPOC exacerbado, IOT há 5 dias, em PSV 8 cmH₂O/PEEP 5, FR 28 irpm, VT 320 mL, pH 7,28, PaCO₂ 58 mmHg. Apresenta duplo disparo e tiragem intercostal evidente. Descreva: diagnóstico funcional, correções mecânicas, metas e plano de desmame.</p>
+    <div class="timer-box">
+      <div class="timer" id="timerD2">30:00</div>
+      <div class="acoes">
+        <button onclick="iniciarTimer('D2')">Iniciar cronômetro</button>
+        <button class="sec" onclick="pararTimer('D2')">Parar</button>
+      </div>
+    </div>
+    <textarea id="respD2" oninput="salvarTextoDisc('D2')" placeholder="Redija sua resposta em 4 parágrafos estruturados..."></textarea>
+    <div class="acoes">
+      <button onclick="avaliarDisc('D2')">Avaliar palavras-gatilho do espelho</button>
+      <button class="sec" onclick="limparDisc('D2')">Limpar</button>
+    </div>
+    <div id="resultD2" class="chips"></div>
+    <div id="feedbackD2"></div>
+  </div>
+
+  <div class="card">
+    <h2>Discursiva 3 — SARA Refratária com Hiperpressão Alveolar</h2>
+    <p style="font-size:13.5px"><strong>Cenário:</strong> Paciente sob VM invasiva por SARA grave, PaO₂/FiO₂ = 80 mmHg com PEEP 14 e FiO₂ 80%, Pplatô de 32 cmH₂O, Driving Pressure de 18 cmH₂O e assincronia grave de esforço ineficaz. Descreva: diagnóstico, intervenção imediata, metas e conduta de resgate.</p>
+    <div class="timer-box">
+      <div class="timer" id="timerD3">30:00</div>
+      <div class="acoes">
+        <button onclick="iniciarTimer('D3')">Iniciar cronômetro</button>
+        <button class="sec" onclick="pararTimer('D3')">Parar</button>
+      </div>
+    </div>
+    <textarea id="respD3" oninput="salvarTextoDisc('D3')" placeholder="Redija sua resposta em 4 parágrafos estruturados..."></textarea>
+    <div class="acoes">
+      <button onclick="avaliarDisc('D3')">Avaliar palavras-gatilho do espelho</button>
+      <button class="sec" onclick="limparDisc('D3')">Limpar</button>
+    </div>
+    <div id="resultD3" class="chips"></div>
+    <div id="feedbackD3"></div>
+  </div>
+</section>
+
+<!-- ================= SIMULADO ================= -->
+<section id="sec-simulado">
+  <div class="card">
+    <h2>Simulado Cebraspe — 50 Itens Cronometrados</h2>
+    <p style="font-size:13.5px;color:#5a6a7a">50 questões sorteadas aleatoriamente do banco com cômputo da nota líquida oficial (1 item errado anula 1 item certo).</p>
+    <div class="sim-nav">
+      <div class="timer" id="timerSim">60:00</div>
+      <div class="sim-progresso" id="simProgresso">0/50 respondidos</div>
+      <div class="acoes" style="margin:0">
+        <button onclick="iniciarSimulado()">Iniciar simulado</button>
+        <button class="sec" onclick="finalizarSimulado()">Finalizar e corrigir</button>
+      </div>
+    </div>
+  </div>
+  <div id="listaSim"></div>
+  <div id="resultadoSim"></div>
+</section>
+
+<!-- ================= ERROS ================= -->
+<section id="sec-erros">
+  <div class="card">
+    <h2>Caderno de Erros Automatizado</h2>
+    <p style="font-size:13.5px;color:#5a6a7a">Aqui ficam catalogadas todas as questões que você errou, com o tipo de armadilha Cebraspe e o item-espelho para fixação.</p>
+    <div class="acoes">
+      <button class="sec" onclick="limparErros()">Limpar caderno</button>
+    </div>
+  </div>
+  <div id="listaErros"></div>
+</section>
+
+<!-- ================= DRIVE & BACKUP ================= -->
+<section id="sec-drive">
+  <div class="card">
+    <h2>Compartilhamento Seguro via Google Drive</h2>
+    <div class="aviso-drive">
+      <strong>Como evitar perda de dados ao usar o Google Drive:</strong>
+      <ol style="margin-left:20px;margin-top:6px">
+        <li><strong>Opção 1 (Mais Recomendada) — Exportar HTML com Progresso Embutido:</strong> Clique no botão abaixo para gerar uma nova versão deste arquivo HTML com todas as suas respostas, anotações e redações já incorporadas no código-fonte. Salve esse novo arquivo no seu Google Drive. Qualquer pessoa ou dispositivo que abrir esse link verá exatamente o seu estado atual.</li>
+        <li><strong>Opção 2 — Arquivo de Backup (.json):</strong> Baixe o arquivo de backup e guarde na sua pasta do Drive. Para restaurar em outro computador ou navegador, use o botão "Restaurar Backup".</li>
+      </ol>
+    </div>
+
+    <div class="acoes" style="margin-top:14px">
+      <button onclick="exportarAppComDados()">💾 Exportar HTML com Progresso Embutido (Pronto p/ Drive)</button>
+      <button class="sec" onclick="exportarBackupJSON()">⬇ Baixar Arquivo de Backup (.json)</button>
+      <label class="acoes" style="display:inline-block;margin:0">
+        <span style="border:1px solid var(--azul);padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;color:var(--azul);cursor:pointer;background:#fff">⬆ Restaurar Backup (.json)</span>
+        <input type="file" id="arquivoBackupInput" accept=".json" style="display:none" onchange="importarBackupJSON(event)">
+      </label>
+      <button class="sec" style="color:var(--vermelho);border-color:var(--vermelho)" onclick="zerarTudo()">Resetar Todos os Dados</button>
+    </div>
+    <div id="statusBackup" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!-- ================= IMPRIMIR ================= -->
+<section id="sec-imprimir">
+  <div class="card">
+    <h2>Impressão e Exportação para PDF</h2>
+    <p>O layout de impressão foi otimizado para remover barras de navegação, timers e botões interativos, gerando uma apostila completa em formato A4.</p>
+    <div class="acoes">
+      <button onclick="window.print()">Imprimir ou Salvar em PDF</button>
+    </div>
+    <div class="ok">Dica: Selecione a opção "Salvar como PDF" na caixa de diálogo de impressão do navegador para gerar um resumo portátil para estudo offline.</div>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ================= MARCADOR DE ESTADO EMBUTIDO (PARA CLONAGEM DRIVE) ================= */
+/*ESTADO_EMBUTIDO_INICIO*/
+const ESTADO_EMBUTIDO = null;
+/*ESTADO_EMBUTIDO_FIM*/
+
+/* ================= BANCO DE 100 ITENS CEBRASPE ================= */
+const ITENS = [
+  // ---------- MECÂNICA / MODOS (25) ----------
+  {id:1,tipo:'mecanica',erro:'alvo',enunciado:'A pressão de pico é a medida representativa da hiperinsuflação alveolar, pois reflete diretamente a pressão no parênquima pulmonar.',correta:false,explicacao:'A pressão de pico avalia o sistema todo (tubo + parênquima). Quem reflete a pressão alveolar é o Pplatô, obtido com pausa inspiratória (fluxo zero).',espelho:'A pressão de platô, obtida por pausa inspiratória, é a medida representativa da pressão alveolar e da complacência estática.'},
+  {id:2,tipo:'mecanica',erro:'conceito',enunciado:'Na PCV, o fluxo é o parâmetro controlado e o volume corrente varia conforme a mecânica pulmonar.',correta:false,explicacao:'Na PCV a pressão é o parâmetro controlado; o volume varia. Na VCV o volume é garantido e a pressão varia.',espelho:'Na VCV, o volume corrente é garantido e a pressão de pico varia conforme a mecânica pulmonar.'},
+  {id:3,tipo:'mecanica',erro:'conceito',enunciado:'O modo PSV é um modo espontâneo, ciclado a fluxo (queda para cerca de 25% do pico de fluxo), em que o paciente controla frequência, tempo inspiratório e volume.',correta:true,explicacao:'Definição correta de PSV. Não há frequência obrigatória nem volume garantido.',espelho:'No modo PSV não há garantia de volume corrente nem frequência obrigatória; o paciente controla o ciclo.'},
+  {id:4,tipo:'mecanica',erro:'conceito',enunciado:'A complacência estática é calculada pela razão entre o volume corrente e a diferença entre Pplatô e PEEP.',correta:true,explicacao:'Cest = VT / (Pplatô − PEEP). Fórmula correta.',espelho:'A resistência de vias aéreas é calculada por (Ppico − Pplatô) / Fluxo.'},
+  {id:5,tipo:'mecanica',erro:'conceito',enunciado:'Na VCV, o volume corrente é garantido e a pressão de pico varia conforme a mecânica pulmonar.',correta:true,explicacao:'Correto. É a definição de VCV.',espelho:'Na PCV, a pressão é fixa e o volume varia conforme a mecânica.'},
+  {id:6,tipo:'mecanica',erro:'valor',enunciado:'A resistência de vias aéreas é calculada por (Ppico − Pplatô) / Fluxo.',correta:true,explicacao:'Correto. Fórmula da Raw.',espelho:'A complacência estática é calculada por VT / (Pplatô − PEEP).'},
+  {id:7,tipo:'mecanica',erro:'alvo',enunciado:'A pressão de platô é obtida por pausa inspiratória com fluxo zero e reflete a pressão alveolar e a complacência estática.',correta:true,explicacao:'Correto. É o alvo da monitorização de proteção alveolar.',espelho:'A pressão de pico avalia o sistema todo (tubo + parênquima).'},
+  {id:8,tipo:'mecanica',erro:'conceito',enunciado:'A equação do movimento relaciona pressão resistiva (fluxo × resistência) e pressão elástica (volume / complacência) acrescidas da PEEP.',correta:true,explicacao:'Correto. É a equação do movimento.',espelho:'A pressão resistiva depende do fluxo e da resistência das vias aéreas.'},
+  {id:9,tipo:'mecanica',erro:'conceito',enunciado:'O ciclo ventilatório mecânico possui quatro fases: disparo, limite, ciclagem e fase expiratória.',correta:true,explicacao:'Correto. As 4 fases clássicas.',espelho:'A fase expiratória é onde atua a PEEP.'},
+  {id:10,tipo:'mecanica',erro:'condicao',enunciado:'No modo PSV, a ciclagem ocorre quando o fluxo cai para cerca de 25% do pico de fluxo inspiratório.',correta:true,explicacao:'Correto. Critério de ciclagem do PSV.',espelho:'No modo PCV, a ciclagem é a tempo.'},
+  {id:11,tipo:'mecanica',erro:'conceito',enunciado:'Na VCV, a pressão é fixa e o volume varia conforme a mecânica pulmonar.',correta:false,explicacao:'Errado. Isso descreve a PCV. Na VCV o volume é garantido e a pressão varia.',espelho:'Na VCV, o volume corrente é garantido e a pressão de pico varia conforme a mecânica pulmonar.'},
+  {id:12,tipo:'mecanica',erro:'alvo',enunciado:'A pressão de pico reflete apenas a complacência do parênquima pulmonar.',correta:false,explicacao:'Errado. A pressão de pico reflete o sistema todo (tubo + parênquima).',espelho:'A pressão de platô reflete apenas a complacência do parênquima pulmonar.'},
+  {id:13,tipo:'mecanica',erro:'valor',enunciado:'A complacência estática é calculada por VT / (Ppico − PEEP).',correta:false,explicacao:'Errado. A fórmula usa Pplatô, não Ppico: Cest = VT / (Pplatô − PEEP).',espelho:'A complacência estática é calculada por VT / (Pplatô − PEEP).'},
+  {id:14,tipo:'mecanica',erro:'conceito',enunciado:'O disparo a pressão ocorre quando o paciente gera uma queda de pressão no circuito que deflagra o ventilador.',correta:true,explicacao:'Correto. É um dos tipos de disparo.',espelho:'O disparo a tempo ocorre independentemente do esforço do paciente.'},
+  {id:15,tipo:'mecanica',erro:'conceito',enunciado:'O limite de pressão na PCV é o que controla a entrada de ar, e o volume varia conforme a mecânica.',correta:true,explicacao:'Correto. Na PCV o limite é a pressão.',espelho:'Na VCV o limite é o volume corrente.'},
+  {id:16,tipo:'mecanica',erro:'condicao',enunciado:'No modo PSV, o paciente controla frequência respiratória, tempo inspiratório e volume corrente.',correta:true,explicacao:'Correto. PSV é modo espontâneo.',espelho:'No modo PSV não há frequência obrigatória.'},
+  {id:17,tipo:'mecanica',erro:'conceito',enunciado:'A PEEP atua na fase inspiratória do ciclo ventilatório.',correta:false,explicacao:'Errado. A PEEP atua na fase expiratória, evitando colapso alveolar.',espelho:'A PEEP atua na fase expiratória do ciclo ventilatório.'},
+  {id:18,tipo:'mecanica',erro:'valor',enunciado:'A resistência de vias aéreas é calculada por (Pplatô − Ppico) / Fluxo.',correta:false,explicacao:'Errado. A ordem é (Ppico − Pplatô) / Fluxo.',espelho:'A resistência de vias aéreas é calculada por (Ppico − Pplatô) / Fluxo.'},
+  {id:19,tipo:'mecanica',erro:'conceito',enunciado:'Na PCV, a pressão é o parâmetro controlado e o volume corrente varia conforme a mecânica pulmonar.',correta:true,explicacao:'Correto. Definição de PCV.',espelho:'Na VCV, o volume corrente é garantido e a pressão varia.'},
+  {id:20,tipo:'mecanica',erro:'alvo',enunciado:'A pressão de platô é obtida sem pausa inspiratória, com fluxo presente.',correta:false,explicacao:'Errado. A pausa inspiratória com fluxo zero é essencial para medir o Pplatô.',espelho:'A pressão de platô é obtida por pausa inspiratória com fluxo zero.'},
+  {id:21,tipo:'mecanica',erro:'conceito',enunciado:'O modo VCV é ciclado a volume, enquanto o PCV é ciclado a tempo.',correta:true,explicacao:'Correto. VCV cicla a volume; PCV cicla a tempo.',espelho:'O modo PSV é ciclado a fluxo.'},
+  {id:22,tipo:'mecanica',erro:'condicao',enunciado:'No modo PSV, a ciclagem é a tempo, independentemente do fluxo.',correta:false,explicacao:'Errado. No PSV a ciclagem é a fluxo (queda para 25% do pico).',espelho:'No modo PSV, a ciclagem ocorre quando o fluxo cai para cerca de 25% do pico.'},
+  {id:23,tipo:'mecanica',erro:'conceito',enunciado:'A pressão resistiva depende do fluxo e da resistência das vias aéreas.',correta:true,explicacao:'Correto. Componente resistivo da equação do movimento.',espelho:'A pressão elástica depende do volume e da complacência.'},
+  {id:24,tipo:'mecanica',erro:'valor',enunciado:'A complacência estática é calculada por VT / (Pplatô − PEEP).',correta:true,explicacao:'Correto. Fórmula da Cest.',espelho:'A resistência de vias aéreas é calculada por (Ppico − Pplatô) / Fluxo.'},
+  {id:25,tipo:'mecanica',erro:'conceito',enunciado:'O disparo a tempo ocorre independentemente do esforço do paciente.',correta:true,explicacao:'Correto. Disparo a tempo é programado pelo ventilador.',espelho:'O disparo a pressão ocorre quando o paciente gera queda de pressão no circuito.'},
+
+  // ---------- SARA / PEEP (30) ----------
+  {id:26,tipo:'sara',erro:'condicao',enunciado:'Na SARA grave, a relação PaO₂/FiO₂ situa-se entre 100 e 200 mmHg.',correta:false,explicacao:'Classificação de Berlim: leve 200–300; moderada 100–200; grave ≤100 (com PEEP ≥5).',espelho:'Na SARA moderada, a relação PaO₂/FiO₂ situa-se entre 100 e 200 mmHg.'},
+  {id:27,tipo:'sara',erro:'conceito',enunciado:'Na ventilação protetora da SARA, o volume corrente deve ser calculado pelo peso real do paciente, entre 4 e 6 mL/kg.',correta:false,explicacao:'O volume corrente é calculado pelo peso predito (altura e sexo), nunca pelo peso real.',espelho:'Na ventilação protetora da SARA, o volume corrente é calculado pelo peso predito, entre 4 e 6 mL/kg.'},
+  {id:28,tipo:'sara',erro:'valor',enunciado:'A meta de driving pressure na ventilação protetora é ≤15 cmH₂O, e a de Pplatô é ≤30 cmH₂O.',correta:true,explicacao:'Metas corretas. ΔP = Pplatô − PEEP.',espelho:'Driving pressure é calculada como Pplatô menos PEEP total.'},
+  {id:29,tipo:'sara',erro:'indicacao',enunciado:'A posição prona está indicada quando PaO₂/FiO₂ <150 mmHg sob PEEP otimizada e FiO₂ ≥60%, mantida por pelo menos 16 horas contínuas.',correta:true,explicacao:'Indicação mandatória conforme protocolo de prona.',espelho:'A posição prona deve ser mantida por pelo menos 16 horas contínuas.'},
+  {id:30,tipo:'sara',erro:'conceito',enunciado:'A hipercapnia permissiva com pH ≥7,20 é aceitável na SARA, exceto em TCE agudo ou hipertensão pulmonar descompensada.',correta:true,explicacao:'Correto. Nessas exceções a hipercapnia é mal tolerada.',espelho:'No TCE agudo, a hipercapnia permissiva é contraindicada por risco de hipertensão intracraniana.'},
+  {id:31,tipo:'sara',erro:'valor',enunciado:'Para ajuste da PEEP externa em paciente com auto-PEEP, recomenda-se utilizar 50% do valor da auto-PEEP estática.',correta:false,explicacao:'Recomenda-se 75–85% da auto-PEEP estática, não 50%.',espelho:'Para ajuste da PEEP externa em paciente com auto-PEEP, recomenda-se 75–85% da auto-PEEP estática.'},
+  {id:32,tipo:'sara',erro:'conceito',enunciado:'A PEEP atua como calço elástico para evitar colapso alveolar expiratório e atelectrauma.',correta:true,explicacao:'Correto. A PEEP mantém recrutamento e reduz atelectrauma.',espelho:'A PEEP reduz o atelectrauma ao evitar o colapso alveolar expiratório.'},
+  {id:33,tipo:'sara',erro:'conceito',enunciado:'O aumento da PEEP eleva a pressão intratorácica, o que tende a aumentar o retorno venoso e o débito cardíaco.',correta:false,explicacao:'O aumento da PEEP reduz o retorno venoso (pré-carga de VD) e pode reduzir o débito cardíaco e a pressão arterial.',espelho:'O aumento excessivo da PEEP pode reduzir o retorno venoso e o débito cardíaco por elevar a pressão intratorácica.'},
+  {id:34,tipo:'sara',erro:'condicao',enunciado:'Na SARA leve, a relação PaO₂/FiO₂ situa-se entre 200 e 300 mmHg.',correta:true,explicacao:'Correto. Classificação de Berlim: leve 200–300.',espelho:'Na SARA grave, a relação PaO₂/FiO₂ é ≤100 mmHg.'},
+  {id:35,tipo:'sara',erro:'indicacao',enunciado:'O bloqueio neuromuscular nas primeiras 48 horas pode ser considerado na SARA grave com assincronia importante.',correta:true,explicacao:'Correto. Considerar BNM precoce na SARA grave.',espelho:'A posição prona é indicada quando PaO₂/FiO₂ <150 sob PEEP otimizada.'},
+  {id:36,tipo:'sara',erro:'conceito',enunciado:'O conceito de baby lung na SARA significa que o pulmão funcional é pequeno e deve ser ventilado com volume corrente reduzido.',correta:true,explicacao:'Correto. Baby lung justifica a ventilação protetora.',espelho:'O volume corrente na SARA deve ser 4–6 mL/kg de peso predito.'},
+  {id:37,tipo:'sara',erro:'valor',enunciado:'A PEEP inicial na SARA deve ser titulada conforme tabela PEEP/FiO₂ da ARDSNet.',correta:true,explicacao:'Correto. A tabela ARDSNet é referência clássica.',espelho:'A FiO₂ deve ser a menor possível para manter SpO₂ entre 92% e 96%.'},
+  {id:38,tipo:'sara',erro:'alvo',enunciado:'A SpO₂ alvo na ventilação protetora da SARA é entre 92% e 96%.',correta:true,explicacao:'Correto. Faixa alvo clássica.',espelho:'A FiO₂ deve ser a menor possível para manter SpO₂ entre 92% e 96%.'},
+  {id:39,tipo:'sara',erro:'condicao',enunciado:'A posição prona deve ser mantida por pelo menos 8 horas contínuas.',correta:false,explicacao:'Errado. O mínimo é 16 horas contínuas.',espelho:'A posição prona deve ser mantida por pelo menos 16 horas contínuas.'},
+  {id:40,tipo:'sara',erro:'conceito',enunciado:'O driving pressure é calculado como Pplatô menos PEEP total.',correta:true,explicacao:'Correto. ΔP = Pplatô − PEEP.',espelho:'A meta de driving pressure é ≤15 cmH₂O.'},
+  {id:41,tipo:'sara',erro:'valor',enunciado:'A meta de Pplatô na ventilação protetora é ≤35 cmH₂O.',correta:false,explicacao:'Errado. A meta é ≤30 cmH₂O.',espelho:'A meta de Pplatô na ventilação protetora é ≤30 cmH₂O.'},
+  {id:42,tipo:'sara',erro:'indicacao',enunciado:'A prona é indicada quando PaO₂/FiO₂ <200 mmHg sob PEEP otimizada.',correta:false,explicacao:'Errado. A indicação é PaO₂/FiO₂ <150 mmHg.',espelho:'A prona é indicada quando PaO₂/FiO₂ <150 mmHg sob PEEP otimizada.'},
+  {id:43,tipo:'sara',erro:'conceito',enunciado:'No TCE agudo, a hipercapnia permissiva é contraindicada por risco de hipertensão intracraniana.',correta:true,explicacao:'Correto. Exceção clássica à hipercapnia permissiva.',espelho:'A hipercapnia permissiva com pH ≥7,20 é aceitável na SARA, exceto em TCE agudo.'},
+  {id:44,tipo:'sara',erro:'conceito',enunciado:'A PEEP reduz o atelectrauma ao evitar o colapso alveolar expiratório.',correta:true,explicacao:'Correto. Papel central da PEEP.',espelho:'A PEEP atua como calço elástico para evitar colapso alveolar.'},
+  {id:45,tipo:'sara',erro:'condicao',enunciado:'Na SARA moderada, a relação PaO₂/FiO₂ situa-se entre 100 e 200 mmHg.',correta:true,explicacao:'Correto. Classificação de Berlim: moderada 100–200.',espelho:'Na SARA grave, a relação PaO₂/FiO₂ é ≤100 mmHg.'},
+  {id:46,tipo:'sara',erro:'valor',enunciado:'A FiO₂ deve ser a maior possível para manter SpO₂ entre 92% e 96%.',correta:false,explicacao:'Errado. Deve ser a menor possível para manter a SpO₂ alvo.',espelho:'A FiO₂ deve ser a menor possível para manter SpO₂ entre 92% e 96%.'},
+  {id:47,tipo:'sara',erro:'conceito',enunciado:'O volume corrente na SARA deve ser 4–6 mL/kg de peso predito.',correta:true,explicacao:'Correto. Base da ventilação protetora.',espelho:'O conceito de baby lung justifica a ventilação protetora na SARA.'},
+  {id:48,tipo:'sara',erro:'alvo',enunciado:'A meta de driving pressure é ≤20 cmH₂O.',correta:false,explicacao:'Errado. A meta é ≤15 cmH₂O.',espelho:'A meta de driving pressure é ≤15 cmH₂O.'},
+  {id:49,tipo:'sara',erro:'indicacao',enunciado:'A prona é indicada quando PaO₂/FiO₂ <150 mmHg sob PEEP otimizada e FiO₂ ≥60%.',correta:true,explicacao:'Correto. Indicação mandatória.',espelho:'A prona deve ser mantida por pelo menos 16 horas contínuas.'},
+  {id:50,tipo:'sara',erro:'conceito',enunciado:'O aumento excessivo da PEEP pode reduzir o retorno venoso e o débito cardíaco por elevar a pressão intratorácica.',correta:true,explicacao:'Correto. Efeito hemodinâmico adverso da PEEP.',espelho:'O aumento da PEEP eleva a pressão intratorácica e tende a reduzir o retorno venoso.'},
+  {id:51,tipo:'sara',erro:'valor',enunciado:'Para ajuste da PEEP externa em paciente com auto-PEEP, recomenda-se 75–85% da auto-PEEP estática.',correta:true,explicacao:'Correto. Faixa recomendada.',espelho:'Para ajuste da PEEP externa em paciente com auto-PEEP, não se recomenda 50% da auto-PEEP estática.'},
+  {id:52,tipo:'sara',erro:'condicao',enunciado:'Na SARA grave, a relação PaO₂/FiO₂ é ≤100 mmHg.',correta:true,explicacao:'Correto. Classificação de Berlim: grave ≤100.',espelho:'Na SARA leve, a relação PaO₂/FiO₂ é 200–300 mmHg.'},
+  {id:53,tipo:'sara',erro:'conceito',enunciado:'A hipercapnia permissiva é aceitável na SARA desde que o pH seja ≥7,20.',correta:true,explicacao:'Correto. Limite de pH clássico.',espelho:'No TCE agudo, a hipercapnia permissiva é contraindicada.'},
+  {id:54,tipo:'sara',erro:'alvo',enunciado:'A meta de Pplatô na ventilação protetora é ≤30 cmH₂O.',correta:true,explicacao:'Correto. Meta clássica.',espelho:'A meta de driving pressure é ≤15 cmH₂O.'},
+  {id:55,tipo:'sara',erro:'valor',enunciado:'A posição prona deve ser mantida por pelo menos 16 horas contínuas.',correta:true,explicacao:'Correto. Mínimo de 16h.',espelho:'A prona é indicada quando PaO₂/FiO₂ <150 sob PEEP otimizada.'},
+
+  // ---------- ASSINCRONIAS / DESMAME (25) ----------
+  {id:56,tipo:'assinc',erro:'conceito',enunciado:'O duplo disparo caracteriza-se por dois ciclos ventilatórios consecutivos, frequentemente associado a tempo inspiratório curto ou fome de fluxo.',correta:true,explicacao:'Correto. É uma assincronia de disparo/ciclagem.',espelho:'O disparo ineficaz ocorre quando o esforço do paciente não deflagra o ventilador, por auto-PEEP ou fraqueza.'},
+  {id:57,tipo:'assinc',erro:'alvo',enunciado:'O sinal de "bico de pato" (beaking) na alça pressão×volume sugere aprisionamento aéreo ou obstrução.',correta:true,explicacao:'Correto. É um dos achados gráficos clássicos.',espelho:'A concavidade anormal na curva de pressão sugere fome de fluxo.'},
+  {id:58,tipo:'assinc',erro:'conceito',enunciado:'O índice de Tobin (IRRS) é calculado pela frequência respiratória dividida pelo volume corrente em litros, e valores <105 predizem sucesso no desmame.',correta:true,explicacao:'Correto. IRRS = f / VT(L); <105 prediz sucesso.',espelho:'Valores do índice de Tobin acima de 105 indicam maior risco de falha no desmame.'},
+  {id:59,tipo:'assinc',erro:'condicao',enunciado:'O teste de respiração espontânea (TRE) deve durar de 30 a 120 minutos, em tubo T ou PSV de 5 a 7 cmH₂O com PEEP ≤5.',correta:true,explicacao:'Correto. Parâmetros clássicos do TRE.',espelho:'O cuff leak test avalia edema de glote antes da extubação.'},
+  {id:60,tipo:'assinc',erro:'indicacao',enunciado:'A VNI profilática imediata é indicada em pacientes de alto risco após extubação, como hipercápnicos, cardiopatas e idosos.',correta:true,explicacao:'Correto. VNI profilática reduz falha de extubação nesses grupos.',espelho:'A VNI no resgate tardio de extubação já falhada é contraindicada.'},
+  {id:61,tipo:'assinc',erro:'indicacao',enunciado:'A VNI é indicada no resgate tardio de extubação já falhada.',correta:false,explicacao:'Errado. No resgate tardio de extubação falhada, a VNI é contraindicada; a profilática é que é indicada.',espelho:'A VNI profilática imediata é indicada em pacientes de alto risco após extubação.'},
+  {id:62,tipo:'assinc',erro:'conceito',enunciado:'O disparo ineficaz ocorre quando o esforço do paciente não deflagra o ventilador, por auto-PEEP ou fraqueza muscular.',correta:true,explicacao:'Correto. É uma assincronia de disparo.',espelho:'O duplo disparo caracteriza-se por dois ciclos consecutivos, associado a Ti curto ou fome de fluxo.'},
+  {id:63,tipo:'assinc',erro:'valor',enunciado:'Valores do índice de Tobin acima de 105 indicam maior probabilidade de sucesso no desmame.',correta:false,explicacao:'Errado. Acima de 105 indica maior risco de falha; <105 prediz sucesso.',espelho:'O índice de Tobin (IRRS) <105 prediz sucesso no desmame.'},
+  {id:64,tipo:'assinc',erro:'condicao',enunciado:'O TRE pode ser realizado em tubo T ou em PSV de 5 a 7 cmH₂O com PEEP ≤5.',correta:true,explicacao:'Correto. Parâmetros do TRE.',espelho:'O TRE deve durar de 30 a 120 minutos.'},
+  {id:65,tipo:'assinc',erro:'conceito',enunciado:'O cuff leak test avalia edema de glote antes da extubação.',correta:true,explicacao:'Correto. Teste de permeabilidade da via aérea.',espelho:'O TRE deve durar de 30 a 120 minutos em tubo T ou PSV.'},
+  {id:66,tipo:'assinc',erro:'indicacao',enunciado:'A VNI profilática imediata é contraindicada em pacientes hipercápnicos após extubação.',correta:false,explicacao:'Errado. É justamente indicada em hipercápnicos de alto risco.',espelho:'A VNI profilática imediata é indicada em pacientes de alto risco após extubação, como hipercápnicos.'},
+  {id:67,tipo:'assinc',erro:'conceito',enunciado:'A fome de fluxo manifesta-se por concavidade anormal na curva de pressão.',correta:true,explicacao:'Correto. Achado gráfico clássico.',espelho:'O beaking na alça P×V sugere aprisionamento aéreo ou obstrução.'},
+  {id:68,tipo:'assinc',erro:'valor',enunciado:'O índice de Tobin é calculado pela frequência respiratória dividida pelo volume corrente em mililitros.',correta:false,explicacao:'Errado. O VT deve estar em litros: IRRS = f / VT(L).',espelho:'O índice de Tobin é calculado pela frequência respiratória dividida pelo volume corrente em litros.'},
+  {id:69,tipo:'assinc',erro:'condicao',enunciado:'Critérios de prontidão para desmame incluem PaO₂/FiO₂ >150–200, PEEP ≤8, FiO₂ ≤40% e pH >7,30.',correta:true,explicacao:'Correto. Critérios clássicos.',espelho:'Critérios de prontidão incluem resolução da causa primária e estabilidade hemodinâmica.'},
+  {id:70,tipo:'assinc',erro:'conceito',enunciado:'O disparo ineficaz é uma assincronia de fluxo.',correta:false,explicacao:'Errado. É uma assincronia de disparo.',espelho:'O disparo ineficaz ocorre quando o esforço do paciente não deflagra o ventilador.'},
+  {id:71,tipo:'assinc',erro:'indicacao',enunciado:'A VNI no resgate tardio de extubação já falhada é contraindicada.',correta:true,explicacao:'Correto. Resgate tardio é contraindicado; profilática é indicada.',espelho:'A VNI profilática imediata é indicada em pacientes de alto risco após extubação.'},
+  {id:72,tipo:'assinc',erro:'valor',enunciado:'O índice de Tobin (IRRS) <105 prediz sucesso no desmame.',correta:true,explicacao:'Correto. Ponto de corte clássico.',espelho:'Valores do índice de Tobin acima de 105 indicam maior risco de falha.'},
+  {id:73,tipo:'assinc',erro:'conceito',enunciado:'O duplo disparo é uma assincronia de disparo/ciclagem.',correta:true,explicacao:'Correto. Dois ciclos consecutivos.',espelho:'O disparo ineficaz é uma assincronia de disparo.'},
+  {id:74,tipo:'assinc',erro:'condicao',enunciado:'O TRE deve durar de 10 a 20 minutos.',correta:false,explicacao:'Errado. O TRE dura de 30 a 120 minutos.',espelho:'O TRE deve durar de 30 a 120 minutos.'},
+  {id:75,tipo:'assinc',erro:'conceito',enunciado:'Critérios de prontidão incluem resolução da causa primária e estabilidade hemodinâmica.',correta:true,explicacao:'Correto. Critérios clássicos de prontidão.',espelho:'Critérios de prontidão incluem PaO₂/FiO₂ >150–200, PEEP ≤8, FiO₂ ≤40%.'},
+  {id:76,tipo:'assinc',erro:'alvo',enunciado:'O beaking na alça P×V sugere aprisionamento aéreo ou obstrução.',correta:true,explicacao:'Correto. Achado gráfico clássico.',espelho:'A fome de fluxo manifesta-se por concavidade anormal na curva de pressão.'},
+  {id:77,tipo:'assinc',erro:'conceito',enunciado:'A fome de fluxo é uma assincronia de fluxo.',correta:true,explicacao:'Correto. Concavidade na curva de pressão.',espelho:'O duplo disparo é uma assincronia de disparo/ciclagem.'},
+  {id:78,tipo:'assinc',erro:'indicacao',enunciado:'A VNI profilática imediata é indicada em cardiopatas e idosos após extubação.',correta:true,explicacao:'Correto. Grupos de alto risco.',espelho:'A VNI no resgate tardio de extubação já falhada é contraindicada.'},
+  {id:79,tipo:'assinc',erro:'valor',enunciado:'O índice de Tobin é calculado pela frequência respiratória dividida pelo volume corrente em litros.',correta:true,explicacao:'Correto. IRRS = f / VT(L).',espelho:'O índice de Tobin (IRRS) <105 prediz sucesso no desmame.'},
+  {id:80,tipo:'assinc',erro:'condicao',enunciado:'O cuff leak test é realizado antes da extubação para avaliar edema de glote.',correta:true,explicacao:'Correto. Teste de permeabilidade da via aérea.',espelho:'O TRE pode ser realizado em tubo T ou em PSV de 5 a 7 cmH₂O.'},
+
+  // ---------- OBSTRUTIVO / DPOC (20) ----------
+  {id:81,tipo:'obstrutivo',erro:'conceito',enunciado:'No paciente com DPOC e hiperinsuflação dinâmica, reduzir a frequência respiratória e prolongar o tempo expiratório ajuda a diminuir a auto-PEEP.',correta:true,explicacao:'Correto. Aumentar a frequência piora o aprisionamento.',espelho:'Aumentar a frequência respiratória para reduzir a PaCO₂ é medida prioritária na hiperinsuflação de pacientes obstrutivos.'},
+  {id:82,tipo:'obstrutivo',erro:'conceito',enunciado:'Aumentar a frequência respiratória para reduzir a PaCO₂ é medida prioritária na hiperinsuflação de pacientes obstrutivos.',correta:false,explicacao:'Errado. Aumentar a FR encurta o tempo expiratório e piora a hiperinsuflação e a auto-PEEP.',espelho:'No paciente obstrutivo com hiperinsuflação, a estratégia é reduzir a frequência e prolongar a expiração.'},
+  {id:83,tipo:'obstrutivo',erro:'valor',enunciado:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O, com verificação a cada 6 horas.',correta:true,explicacao:'Correto. Faixa e periodicidade clássicas de prova.',espelho:'A pressão do cuff acima de 30 cmH₂O aumenta o risco de lesão traqueal.'},
+  {id:84,tipo:'obstrutivo',erro:'indicacao',enunciado:'A VNI é contraindicada na exacerbação do DPOC com acidose respiratória.',correta:false,explicacao:'Errado. Na exacerbação do DPOC com acidose, a VNI é fortemente indicada.',espelho:'A VNI é fortemente indicada na exacerbação do DPOC com acidose respiratória.'},
+  {id:85,tipo:'obstrutivo',erro:'valor',enunciado:'A pressão do cuff acima de 30 cmH₂O reduz o risco de lesão traqueal.',correta:false,explicacao:'Errado. Acima de 30 cmH₂O aumenta o risco de lesão traqueal; a faixa segura é 25–30.',espelho:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O, com verificação a cada 6 horas.'},
+  {id:86,tipo:'obstrutivo',erro:'indicacao',enunciado:'A VNI é fortemente indicada na exacerbação do DPOC com acidose respiratória.',correta:true,explicacao:'Correto. Indicação clássica de VNI.',espelho:'A VNI é contraindicada no resgate tardio de extubação já falhada.'},
+  {id:87,tipo:'obstrutivo',erro:'conceito',enunciado:'No paciente obstrutivo com hiperinsuflação, a estratégia é reduzir a frequência e prolongar a expiração.',correta:true,explicacao:'Correto. Reduz auto-PEEP.',espelho:'Aumentar a frequência respiratória piora a hiperinsuflação em pacientes obstrutivos.'},
+  {id:88,tipo:'obstrutivo',erro:'valor',enunciado:'A pressão do cuff deve ser mantida entre 15 e 20 cmH₂O.',correta:false,explicacao:'Errado. A faixa é 25–30 cmH₂O.',espelho:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O.'},
+  {id:89,tipo:'obstrutivo',erro:'condicao',enunciado:'A pressão do cuff deve ser verificada a cada 6 horas.',correta:true,explicacao:'Correto. Periodicidade clássica.',espelho:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O.'},
+  {id:90,tipo:'obstrutivo',erro:'conceito',enunciado:'Aumentar a frequência respiratória piora a hiperinsuflação em pacientes obstrutivos.',correta:true,explicacao:'Correto. Encurta o tempo expiratório.',espelho:'No paciente obstrutivo, reduzir a frequência e prolongar a expiração ajuda a diminuir a auto-PEEP.'},
+  {id:91,tipo:'obstrutivo',erro:'indicacao',enunciado:'A VNI é contraindicada no resgate tardio de extubação já falhada.',correta:true,explicacao:'Correto. Contraindicação clássica.',espelho:'A VNI profilática imediata é indicada em pacientes de alto risco após extubação.'},
+  {id:92,tipo:'obstrutivo',erro:'valor',enunciado:'A faixa segura de pressão do cuff é 20–25 cmH₂O.',correta:false,explicacao:'Errado. A faixa é 25–30 cmH₂O.',espelho:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O.'},
+  {id:93,tipo:'obstrutivo',erro:'conceito',enunciado:'No DPOC exacerbado com acidose, a VNI reduz a necessidade de intubação.',correta:true,explicacao:'Correto. Benefício clássico da VNI.',espelho:'A VNI é fortemente indicada na exacerbação do DPOC com acidose respiratória.'},
+  {id:94,tipo:'obstrutivo',erro:'condicao',enunciado:'A pressão do cuff deve ser verificada a cada 12 horas.',correta:false,explicacao:'Errado. A verificação é a cada 6 horas.',espelho:'A pressão do cuff deve ser verificada a cada 6 horas.'},
+  {id:95,tipo:'obstrutivo',erro:'conceito',enunciado:'A hiperinsuflação dinâmica está associada ao aprisionamento aéreo e à auto-PEEP.',correta:true,explicacao:'Correto. Conceito central no obstrutivo.',espelho:'No paciente obstrutivo, reduzir a frequência e prolongar a expiração ajuda a diminuir a auto-PEEP.'},
+  {id:96,tipo:'obstrutivo',erro:'indicacao',enunciado:'A VNI é indicada na exacerbação do DPOC com acidose respiratória.',correta:true,explicacao:'Correto. Indicação clássica.',espelho:'A VNI é contraindicada no resgate tardio de extubação já falhada.'},
+  {id:97,tipo:'obstrutivo',erro:'valor',enunciado:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O.',correta:true,explicacao:'Correto. Faixa segura.',espelho:'A pressão do cuff acima de 30 cmH₂O aumenta o risco de lesão traqueal.'},
+  {id:98,tipo:'obstrutivo',erro:'conceito',enunciado:'Aumentar a frequência respiratória é a estratégia prioritária para reduzir a PaCO₂ na hiperinsuflação obstrutiva.',correta:false,explicacao:'Errado. A estratégia é reduzir a frequência e prolongar a expiração.',espelho:'No paciente obstrutivo com hiperinsuflação, a estratégia é reduzir a frequência e prolongar a expiração.'},
+  {id:99,tipo:'obstrutivo',erro:'condicao',enunciado:'A VNI é fortemente indicada na exacerbação do DPOC com acidose respiratória.',correta:true,explicacao:'Correto. Indicação clássica.',espelho:'A VNI é contraindicada no resgate tardio de extubação já falhada.'},
+  {id:100,tipo:'obstrutivo',erro:'valor',enunciado:'A pressão do cuff acima de 30 cmH₂O aumenta o risco de lesão traqueal.',correta:true,explicacao:'Correto. Faixa segura é 25–30 cmH₂O.',espelho:'A pressão do cuff deve ser mantida entre 25 e 30 cmH₂O.'}
+];
+
+/* ================= GERENCIAMENTO DE ESTADO ROBUSTO ================= */
+let filtroAtual = 'todos';
+
+function carregarEstado(){
+  if(ESTADO_EMBUTIDO){
+    return ESTADO_EMBUTIDO;
+  }
+  return {
+    respondidos: JSON.parse(localStorage.getItem('vm_respondidos') || '{}'),
+    erros: JSON.parse(localStorage.getItem('vm_erros') || '[]'),
+    discEnviadas: JSON.parse(localStorage.getItem('vm_disc') || '[]'),
+    textosDisc: JSON.parse(localStorage.getItem('vm_textos_disc') || '{"D1":"","D2":"","D3":""}'),
+    ultimoSim: localStorage.getItem('vm_ultimo_sim') || '—'
+  };
+}
+
+let estado = carregarEstado();
+
+function salvarLocal(){
+  localStorage.setItem('vm_respondidos', JSON.stringify(estado.respondidos));
+  localStorage.setItem('vm_erros', JSON.stringify(estado.erros));
+  localStorage.setItem('vm_disc', JSON.stringify(estado.discEnviadas));
+  localStorage.setItem('vm_textos_disc', JSON.stringify(estado.textosDisc));
+  localStorage.setItem('vm_ultimo_sim', estado.ultimoSim);
+}
+
+/* ================= NAVEGAÇÃO ================= */
+function irPara(sec){
+  document.querySelectorAll('section').forEach(s => s.classList.remove('ativo'));
+  const el = document.getElementById('sec-' + sec);
+  if(el) el.classList.add('ativo');
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('ativo', b.dataset.sec === sec));
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('nav button').forEach(b => {
+  b.addEventListener('click', () => irPara(b.dataset.sec));
+});
+
+/* ================= RENDER ITENS ================= */
+function labelTipo(t){return {mecanica:'Mecânica/Modos',sara:'SARA/PEEP',assinc:'Assincronias/Desmame',obstrutivo:'Obstrutivo/DPOC'}[t]||t;}
+function labelErro(e){return {conceito:'conceito',valor:'valor',alvo:'alvo',indicacao:'indicação',condicao:'condição'}[e]||e;}
+
+function renderItens(){
+  const lista = document.getElementById('listaItens');
+  lista.innerHTML = '';
+  ITENS.filter(i => filtroAtual === 'todos' || i.tipo === filtroAtual).forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    const resp = estado.respondidos[item.id];
+    div.innerHTML = `
+      <span class="tag">#${item.id} · ${labelTipo(item.tipo)} · armadilha: ${labelErro(item.erro)}</span>
+      <div class="enunciado">${item.enunciado}</div>
+      <div class="botoes">
+        <button class="certo" onclick="responder(${item.id}, true)" ${resp !== undefined ? 'disabled' : ''}>Certo</button>
+        <button class="errado" onclick="responder(${item.id}, false)" ${resp !== undefined ? 'disabled' : ''}>Errado</button>
+      </div>
+      <div class="feedback ${resp !== undefined ? 'show' : ''} ${resp === item.correta ? 'acerto' : 'erro'}">
+        ${resp !== undefined ? renderFeedback(item, resp) : ''}
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+  atualizarPainel();
+}
+
+function renderFeedback(item, resp){
+  const acertou = resp === item.correta;
+  return `<strong>${acertou ? '✔ Acertou' : '✘ Errou'}</strong> — Gabarito Oficial: <strong>${item.correta ? 'Certo' : 'Errado'}</strong>.
+    <div style="margin-top:6px">${item.explicacao}</div>
+    <div class="espelho"><strong>Item-Espelho Tático:</strong> ${item.espelho}</div>`;
+}
+
+function responder(id, resp){
+  const item = ITENS.find(i => i.id === id);
+  estado.respondidos[id] = resp;
+  if(resp !== item.correta){
+    if(!estado.erros.find(e => e.id === id)){
+      estado.erros.push({id, tipo:item.tipo, erro:item.erro, enunciado:item.enunciado, espelho:item.espelho});
+    }
+  }
+  salvarLocal();
+  renderItens();
+  renderErros();
+}
+
+function filtrarItens(t){filtroAtual = t; renderItens();}
+
+/* ================= PAINEL ================= */
+function atualizarPainel(){
+  const total = ITENS.length;
+  const respCount = Object.keys(estado.respondidos).length;
+  const acertos = ITENS.filter(i => estado.respondidos[i.id] === i.correta).length;
+  document.getElementById('pItens').textContent = respCount;
+  document.getElementById('pAcertos').textContent = respCount ? Math.round(acertos / respCount * 100) + '%' : '0%';
+  document.getElementById('pErros').textContent = estado.erros.length;
+  document.getElementById('pDisc').textContent = estado.discEnviadas.length + '/3';
+  document.getElementById('pSim').textContent = estado.ultimoSim;
+  document.getElementById('placarTopo').textContent = acertos + '/' + respCount;
+  document.getElementById('barraProgresso').style.width = (respCount / total * 100) + '%';
+}
+
+/* ================= CADERNO DE ERROS ================= */
+function renderErros(){
+  const div = document.getElementById('listaErros');
+  if(!estado.erros.length){
+    div.innerHTML = '<div class="card"><p>Nenhum item com erro catalogado. Excelente rendimento!</p></div>';
+    return;
+  }
+  div.innerHTML = estado.erros.map(e => `
+    <div class="item">
+      <span class="tag">#${e.id} · ${labelTipo(e.tipo)} · erro: ${labelErro(e.erro)}</span>
+      <div class="enunciado">${e.enunciado}</div>
+      <div class="espelho" style="margin-top:8px"><strong>Item-Espelho para Neutralizar o Erro:</strong> ${e.espelho}</div>
+    </div>`).join('');
+}
+
+function limparErros(){
+  if(confirm('Deseja realmente limpar todo o caderno de erros?')){
+    estado.erros = [];
+    salvarLocal();
+    renderErros();
+    atualizarPainel();
+  }
+}
+
+/* ================= DISCURSIVAS ================= */
+const GATILHOS = ['peso predito','driving pressure','complacência estática','índice de tobin','prona','hipercapnia permissiva','platô','peep','volume corrente','sara','ph','tobin'];
+
+function salvarTextoDisc(id){
+  const txt = document.getElementById('resp' + id).value;
+  estado.textosDisc[id] = txt;
+  salvarLocal();
+}
+
+function avaliarDisc(id){
+  const txt = document.getElementById('resp' + id).value.toLowerCase();
+  const result = document.getElementById('result' + id);
+  const fb = document.getElementById('feedback' + id);
+  result.innerHTML = GATILHOS.map(g => {
+    const tem = txt.includes(g);
+    return `<span class="chip ${tem ? 'tem' : 'falta'}">${tem ? '✔' : '✘'} ${g}</span>`;
+  }).join('');
+  const faltando = GATILHOS.filter(g => !txt.includes(g));
+  fb.innerHTML = faltando.length
+    ? `<div class="alerta">Faltam ${faltando.length} palavras-gatilho cruciais do espelho de correção Cebraspe: <strong>${faltando.join(', ')}</strong>.</div>`
+    : `<div class="ok">Excelente! Todos os termos-chave pontuadores foram detectados. Verifique se a sua redação respeita rigorosamente a divisão em 4 parágrafos.</div>`;
+  if(!estado.discEnviadas.includes(id)){
+    estado.discEnviadas.push(id);
+  }
+  salvarLocal();
+  atualizarPainel();
+}
+
+function limparDisc(id){
+  document.getElementById('resp' + id).value = '';
+  document.getElementById('result' + id).innerHTML = '';
+  document.getElementById('feedback' + id).innerHTML = '';
+  estado.textosDisc[id] = '';
+  estado.discEnviadas = estado.discEnviadas.filter(x => x !== id);
+  salvarLocal();
+  atualizarPainel();
+}
+
+/* ================= TIMERS ================= */
+const timers = {};
+function iniciarTimer(id){
+  if(timers[id]) return;
+  let restante = 30 * 60;
+  timers[id] = setInterval(() => {
+    restante--;
+    const m = String(Math.floor(restante / 60)).padStart(2, '0');
+    const s = String(restante % 60).padStart(2, '0');
+    document.getElementById('timer' + id).textContent = `${m}:${s}`;
+    if(restante <= 0){
+      clearInterval(timers[id]);
+      timers[id] = null;
+      document.getElementById('timer' + id).textContent = '00:00';
+    }
+  }, 1000);
+}
+function pararTimer(id){clearInterval(timers[id]); timers[id] = null;}
+
+/* ================= SIMULADO COM NOTA LÍQUIDA CEBRASPE ================= */
+let simItens = [];
+let simRespostas = {};
+let simTimer = null;
+let simRestante = 60 * 60;
+
+function iniciarSimulado(){
+  simItens = [...ITENS].sort(() => Math.random() - 0.5).slice(0, 50);
+  simRespostas = {};
+  simRestante = 60 * 60;
+  document.getElementById('resultadoSim').innerHTML = '';
+  renderSimulado();
+  atualizarProgressoSim();
+  if(simTimer) clearInterval(simTimer);
+  simTimer = setInterval(() => {
+    simRestante--;
+    const m = String(Math.floor(simRestante / 60)).padStart(2, '0');
+    const s = String(simRestante % 60).padStart(2, '0');
+    document.getElementById('timerSim').textContent = `${m}:${s}`;
+    if(simRestante <= 0){ finalizarSimulado(); }
+  }, 1000);
+}
+
+function renderSimulado(){
+  const lista = document.getElementById('listaSim');
+  lista.innerHTML = '';
+  simItens.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    const resp = simRespostas[item.id];
+    div.innerHTML = `
+      <span class="tag">Questão ${idx + 1} de 50 · ${labelTipo(item.tipo)}</span>
+      <div class="enunciado">${item.enunciado}</div>
+      <div class="botoes">
+        <button class="certo" onclick="responderSim(${item.id}, true)" ${resp !== undefined ? 'disabled' : ''}>Certo</button>
+        <button class="errado" onclick="responderSim(${item.id}, false)" ${resp !== undefined ? 'disabled' : ''}>Errado</button>
+      </div>
+    `;
+    lista.appendChild(div);
+  });
+}
+
+function responderSim(id, resp){
+  simRespostas[id] = resp;
+  renderSimulado();
+  atualizarProgressoSim();
+}
+
+function atualizarProgressoSim(){
+  document.getElementById('simProgresso').textContent = Object.keys(simRespostas).length + '/50 respondidos';
+}
+
+function finalizarSimulado(){
+  if(simTimer){ clearInterval(simTimer); simTimer = null; }
+  let certos = 0;
+  let errados = 0;
+  let emBranco = 0;
+
+  simItens.forEach(item => {
+    const r = simRespostas[item.id];
+    if(r === undefined){
+      emBranco++;
+    } else if(r === item.correta){
+      certos++;
+    } else {
+      errados++;
+      if(!estado.erros.find(e => e.id === item.id)){
+        estado.erros.push({id: item.id, tipo: item.tipo, erro: item.erro, enunciado: item.enunciado, espelho: item.espelho});
+      }
+    }
+  });
+
+  const notaLiquida = certos - errados;
+  const pctAcertos = Math.round((certos / 50) * 100);
+  const statusSim = `${notaLiquida} pts líquidos (${pctAcertos}%)`;
+
+  estado.ultimoSim = statusSim;
+  salvarLocal();
+
+  document.getElementById('resultadoSim').innerHTML = `
+    <div class="resultado-final">
+      <strong>Resultado Oficial do Simulado (Critério Cebraspe 1:1):</strong><br>
+      • Itens Corretos: <strong>${certos}</strong><br>
+      • Itens Incorretos: <strong>${errados}</strong> (cada erro anula um acerto)<br>
+      • Em branco: <strong>${emBranco}</strong><br>
+      • <strong>Nota Líquida Final: ${notaLiquida} pontos</strong> em 50 possíveis.<br>
+      <div style="margin-top:8px">${notaLiquida >= 30 ? '🟢 Desempenho altamente competitivo para aprovação.' : notaLiquida >= 18 ? '🟡 Bom rendimento, mas elimine os erros para não sofrer descontos na nota líquida.' : '🔴 Atenção redobrada: revise a teoria básica antes do próximo teste.'}</div>
+    </div>`;
+
+  renderErros();
+  atualizarPainel();
+}
+
+/* ================= RECURSOS DE BACKUP E EXPORTAÇÃO DRIVE ================= */
+function exportarBackupJSON(){
+  const blob = new Blob([JSON.stringify(estado, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dataHoje = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `backup_vm_cebraspe_${dataHoje}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('statusBackup').innerHTML = '<div class="ok">Arquivo JSON de backup baixado com sucesso! Guarde-o na sua pasta do Google Drive.</div>';
+}
+
+function importarBackupJSON(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const dados = JSON.parse(e.target.result);
+      if(dados && dados.respondidos){
+        estado = {
+          respondidos: dados.respondidos || {},
+          erros: dados.erros || [],
+          discEnviadas: dados.discEnviadas || [],
+          textosDisc: dados.textosDisc || {"D1":"","D2":"","D3":""},
+          ultimoSim: dados.ultimoSim || '—'
+        };
+        salvarLocal();
+        inicializarCampos();
+        renderItens();
+        renderErros();
+        atualizarPainel();
+        document.getElementById('statusBackup').innerHTML = '<div class="ok">Progresso restaurado com sucesso a partir do backup!</div>';
+      } else {
+        alert('Formato de arquivo inválido.');
+      }
+    } catch(err){
+      alert('Erro ao processar o arquivo de backup.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function exportarAppComDados(){
+  const htmlClone = document.documentElement.outerHTML;
+  const regex = /\/\*ESTADO_EMBUTIDO_INICIO\*\/[\s\S]*?\/\*ESTADO_EMBUTIDO_FIM\*\//;
+  const estadoString = `/*ESTADO_EMBUTIDO_INICIO*/\nconst ESTADO_EMBUTIDO = ${JSON.stringify(estado, null, 2)};\n/*ESTADO_EMBUTIDO_FIM*/`;
+  const novoHTML = htmlClone.replace(regex, estadoString);
+
+  const blob = new Blob([novoHTML], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dataHoje = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `VM_Cebraspe_Sessao_${dataHoje}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  document.getElementById('statusBackup').innerHTML = `
+    <div class="ok">
+      <strong>Arquivo HTML autônomo gerado com sucesso!</strong><br>
+      Suba o arquivo baixado (<code>VM_Cebraspe_Sessao_${dataHoje}.html</code>) diretamente para o seu Google Drive. Ao compartilhar esse link, todo o seu progresso, redações e caderno de erros estarão perfeitamente preservados.
+    </div>`;
+}
+
+function zerarTudo(){
+  if(confirm('ATENÇÃO: Deseja apagar todo o progresso e reiniciar o banco do zero?')){
+    estado = {respondidos:{}, erros:[], discEnviadas:[], textosDisc:{D1:'',D2:'',D3:''}, ultimoSim:'—'};
+    salvarLocal();
+    inicializarCampos();
+    renderItens();
+    renderErros();
+    atualizarPainel();
+    document.getElementById('statusBackup').innerHTML = '<div class="alerta">Todos os dados foram resetados com sucesso.</div>';
+  }
+}
+
+function inicializarCampos(){
+  ['D1','D2','D3'].forEach(id => {
+    const el = document.getElementById('resp' + id);
+    if(el && estado.textosDisc[id]) el.value = estado.textosDisc[id];
+  });
+}
+
+/* ================= INICIALIZAÇÃO GERAL ================= */
+inicializarCampos();
+renderItens();
+renderErros();
+atualizarPainel();
+</script>
+</body>
+</html>
